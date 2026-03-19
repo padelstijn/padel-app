@@ -1,4 +1,4 @@
-const CACHE="padel-v2";
+const CACHE="padel-v3";
 
 self.addEventListener("install",e=>{
 e.waitUntil(
