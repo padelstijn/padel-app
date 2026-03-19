@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<title>Padel Training App</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f2027">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:#0f2027;
+color:white;
+display:flex;
+flex-direction:column;
+height:100vh;
+}
+
+.content{
+flex:1;
+overflow:auto;
+padding:15px;
+padding-bottom:120px;
+}
+
+.card{
+background:rgba(255,255,255,0.08);
+padding:12px;
+border-radius:14px;
+margin-bottom:10px;
+}
+
+button{
+min-height:48px;
+padding:12px;
+border:none;
+border-radius:12px;
+font-weight:bold;
+}
+
+.bottom{
+position:fixed;
+bottom:0;
+width:100%;
+display:flex;
+flex-wrap:wrap;
+background:#000;
+padding:6px;
+}
+
+.bottom button{
+flex:1 1 30%;
+margin:2px;
+}
+
+#randomFactBtn{
+width:100%;
+padding:18px;
+font-size:20px;
+background:gold;
+color:black;
+}
+</style>
+</head>
+
+<body>
+
+<div class="content">
+
+<button id="randomFactBtn" onclick="randomRow()">🎲 RANDOM</button>
+
+<h3>🎾 Padel Training</h3>
+
+<div id="rowNumber"></div>
+<div id="rowContent"></div>
+
+<button onclick="installApp()">📲 Install App</button>
+
+</div>
+
+<div class="bottom">
+<button onclick="prevRow()">⬅</button>
+<button onclick="nextRow()">➡</button>
+<button onclick="addFav()">⭐</button>
+<button onclick="openGoogle()">G</button>
+<button onclick="openYT()">YT</button>
+</div>
+
+<script>
+const sheetURL="https://docs.google.com/spreadsheets/d/e/2PACX-1vThMpYnebaYI_2w9cLZr-lp9wpFDF-YcVEs4muuLk0LgpRBlNq9gVPgsFtwUHtsy02RmuY1Ds9ziOvf/pub?output=csv";
+
+let rows=[],headers=[],i=0,favs=[];
+
+async function load(){
+let r=await fetch(sheetURL);
+let t=await r.text();
+let l=t.split("\n").filter(x=>x);
+let p=l.map(x=>x.split(","));
+headers=p[0];
+rows=p.slice(1);
+show(0);
+}
+
+function show(n){
+i=Math.max(0,Math.min(n,rows.length-1));
+let row=rows[i];
+let html="";
+headers.forEach((h,ix)=>{
+if(row[ix]){
+html+=`<div class="card"><b>${h}</b><br>${row[ix]}</div>`;
+}
+});
+rowContent.innerHTML=html;
+rowNumber.innerText=`${i+1}/${rows.length}`;
+}
+
+function nextRow(){show(i+1);}
+function prevRow(){show(i-1);}
+function randomRow(){show(Math.floor(Math.random()*rows.length));}
+
+function openGoogle(){
+window.open("https://google.com/search?q="+rows[i].join(" "));
+}
+
+function openYT(){
+window.open("https://youtube.com/results?search_query="+rows[i].join(" "));
+}
+
+function addFav(){
+favs.push(rows[i].join("\n"));
+alert("Saved ⭐");
+}
+
+/* SWIPE */
+let startX=0;
+document.addEventListener("touchstart",e=>startX=e.touches[0].clientX);
+document.addEventListener("touchend",e=>{
+let diff=startX-e.changedTouches[0].clientX;
+if(Math.abs(diff)>50){
+diff>0?nextRow():prevRow();
+}
+});
+
+/* INSTALL */
+let deferredPrompt;
+window.addEventListener("beforeinstallprompt",e=>{
+e.preventDefault();
+deferredPrompt=e;
+});
+
+function installApp(){
+if(deferredPrompt){
+deferredPrompt.prompt();
+}
+}
+
+/* SERVICE WORKER */
+if("serviceWorker" in navigator){
+navigator.serviceWorker.register("sw.js");
+}
+
+load();
+</script>
+
+</body>
+</html>
