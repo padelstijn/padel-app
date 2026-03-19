@@ -9,7 +9,98 @@
 <meta name="theme-color" content="#0f2027">
 
 <!-- CSS -->
-<link rel="stylesheet" href="style.css">
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:#0f2027;
+  color:white;
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+}
+.content{
+  flex:1;
+  overflow:auto;
+  padding:15px;
+  padding-bottom:120px;
+  -webkit-overflow-scrolling: touch;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.card{
+  background:rgba(255,255,255,0.08);
+  padding:12px;
+  border-radius:14px;
+  margin-bottom:10px;
+  width:100%;
+}
+button{
+  min-height:48px;
+  padding:12px;
+  border:none;
+  border-radius:12px;
+  font-weight:bold;
+}
+.bottom{
+  position:fixed;
+  bottom:0;
+  width:100%;
+  display:flex;
+  flex-wrap:wrap;
+  background:#000;
+  padding:6px;
+}
+.bottom button{
+  flex:1 1 30%;
+  margin:2px;
+}
+#randomFactBtn{
+  width:100%;
+  padding:18px;
+  font-size:20px;
+  background:gold;
+  color:black;
+  border-radius:14px;
+}
+
+/* Sticky logo and install button */
+.logo-container {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  width:100%;
+  margin-bottom:12px;
+}
+.logo-banner{
+  position:sticky;
+  top:0;
+  background:#0f2027;
+  z-index:100;
+  padding-top:10px;
+  padding-bottom:10px;
+  display:flex;
+  justify-content:center;
+}
+.logo-banner img{
+  width:80%;
+  max-width:360px;
+  border-radius:12px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.4);
+  cursor:pointer;
+}
+#installBtn {
+  margin-top:8px;
+  padding:12px 24px;
+  font-size:16px;
+  background:#1E90FF;
+  color:white;
+  border-radius:12px;
+  border:none;
+  cursor:pointer;
+}
+</style>
 
 <!-- jsPDF for PDF export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -45,7 +136,95 @@
   <button onclick="openYT()">YT</button>
 </div>
 
-<!-- JavaScript -->
-<script src="script.js"></script>
+<script>
+const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vThMpYnebaYI_2w9cLZr-lp9wpFDF-YcVEs4muuLk0LgpRBlNq9gVPgsFtwUHtsy02RmuY1Ds9ziOvf/pub?output=csv";
+
+let rows = [], headers = [], i = 0, favs = [], deferredPrompt;
+
+// Load CSV from Google Sheets
+async function load() {
+    try {
+        const res = await fetch(sheetURL);
+        const text = await res.text();
+        const lines = text.split("\n").filter(l => l.trim() !== "");
+        const parsed = lines.map(line => line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/"/g, "").trim()));
+        headers = parsed[0];
+        rows = parsed.slice(1);
+        show(0);
+    } catch (err) {
+        console.error("Error loading sheet:", err);
+    }
+}
+
+// Show a row
+function show(n) {
+    if (!rows || rows.length === 0) return;
+    i = (n + rows.length) % rows.length;
+    const row = rows[i];
+    let html = "";
+    headers.forEach((h, ix) => {
+        if (row[ix]) {
+            html += `<div class="card"><b>${h}</b><br>${row[ix]}</div>`;
+        }
+    });
+    document.getElementById("rowContent").innerHTML = html;
+    document.getElementById("rowNumber").innerText = `${i + 1}/${rows.length}`;
+}
+
+// Navigation
+function nextRow() { show(i + 1); }
+function prevRow() { show(i - 1); }
+function randomRow() { show(Math.floor(Math.random() * rows.length)); }
+
+// Open Google / YouTube
+function openGoogle() { window.open("https://google.com/search?q=" + rows[i].join(" ")); }
+function openYT() { window.open("https://youtube.com/results?search_query=" + rows[i].join(" ")); }
+
+// Favorites
+function addFav() { favs.push(rows[i].join("\n")); alert("Saved ⭐"); }
+
+// Swipe gestures
+let startX = 0;
+document.addEventListener("touchstart", e => startX = e.touches[0].clientX);
+document.addEventListener("touchend", e => {
+    let diff = startX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) { diff > 0 ? nextRow() : prevRow(); }
+});
+
+// Install App button
+function installApp() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(choice => {
+            deferredPrompt = null;
+            document.getElementById("installBtn").style.display = "none";
+        });
+    } else {
+        alert("App cannot be installed at this time.");
+    }
+}
+
+// Always show button for testing
+let installBtn = document.getElementById("installBtn");
+installBtn.style.display = "block";
+
+window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = "block";
+});
+window.addEventListener("appinstalled", () => {
+    installBtn.style.display = "none";
+    console.log("PWA installed ✅");
+});
+
+// Service Worker
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(console.error);
+}
+
+// Load sheet on start
+load();
+</script>
 </body>
 </html>
